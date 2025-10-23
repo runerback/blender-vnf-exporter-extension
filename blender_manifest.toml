@@ -3,7 +3,7 @@ schema_version = "1.0.0"
 id = "blender_vnf_exporter_extension"
 version = "1.0.0"
 name = "VNF Export Extension"
-tagline = "Export blender mesh vnf to openscad"
+tagline = "Export blender mesh to openscad vnf"
 maintainer = "runerback"
 type = "add-on"
 
