@@ -7,7 +7,7 @@ bl_info = {
 import os
 from bpy_extras.io_utils import ExportHelper
 from bpy.types import Operator, VIEW3D_MT_edit_mesh
-from bpy.props import StringProperty
+from bpy.props import StringProperty, BoolProperty
 from bpy.utils import register_class, unregister_class
 import bmesh
 
@@ -19,8 +19,34 @@ class MeshVNFExporter(Operator, ExportHelper):
     bl_label = "Export VNF"
     bl_options = {"PRESET"}
 
+    module_name: StringProperty(default="", options={"HIDDEN"})
+
+    def __init__(self):
+        self.module_name, _ = os.path.splitext(os.path.basename(self.filepath))
+
+    # end def
+
     filename_ext = ".scad"
     filter_glob: StringProperty(default="*.scad", options={"HIDDEN"})
+
+    modulize: BoolProperty(
+        name="Modulize",
+        description="whether create module",
+        default=False,
+        options={"HIDDEN"},
+    )
+
+    def draw(self):
+        layout = self.layout
+
+        # TODO
+        # row = layout.row()
+        # row.prop(self, "module_name")
+
+        row = layout.row()
+        row.prop(self, "modulize")
+
+    # end def
 
     def execute(self, context):
         if context.mode != "EDIT_MESH":
@@ -71,23 +97,25 @@ class MeshVNFExporter(Operator, ExportHelper):
         faceIdxes.sort()
         vdxess = [[v.index for v in faces.get(idx)] for idx in faceIdxes]
 
-        module_name, _ = os.path.splitext(os.path.basename(self.filepath))
         with open(self.filepath, "w", encoding="utf-8") as scad:
-            module_lines = [
+            lines = [
                 "include <BOSL2/std.scad>",
-                "module {}() {{".format(module_name),
+                "module {}() {{".format(self.module_name),
                 "    verts = [",
             ]
             for v in exporting_bm.verts:
                 x, y, z = tuple(v.co)
-                module_lines.append(f"        [{x},{y},{z}],")
+                lines.append(f"        [{x},{y},{z}],")
             # end for
-            module_lines.extend(["    ];", "    faces = ["])
+            lines.extend(["    ];", "    faces = ["])
             for vdxes in vdxess:
-                module_lines.append(f"        {vdxes},")
+                lines.append(f"        {vdxes},")
             # end for
-            module_lines.extend(["    ];", "    polyhedron(verts, faces);", "}"])
-            scad.write("\n".join(module_lines))
+            lines.extend(["    ];", "    polyhedron(verts, faces);", "}"])
+            if self.modulize:
+                lines.append("{}();".format(self.module_name))
+            # end if
+            scad.write("\n".join(lines))
         # end with
 
         self.report({"INFO"}, "exported to: {}".format(self.filepath))
