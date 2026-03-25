@@ -70,33 +70,24 @@ def _sanitize_name(name):
 # end def
 
 
-def _apply_uniform_scale_from_last_axis(operator):
-    axis = operator.scale_last_axis
-    value = operator.scale_x
-    if axis == "Y":
-        value = operator.scale_y
-    elif axis == "Z":
-        value = operator.scale_z
-    # end if
-
-    operator.syncing_scale = True
-    operator.scale_x = value
-    operator.scale_y = value
-    operator.scale_z = value
-    operator.syncing_scale = False
-
-
-# end def
-
-
 def _update_scale_axis(axis):
     def _update(self, context):
         if self.syncing_scale:
             return
         # end if
-        self.scale_last_axis = axis
         if self.uniform_scale:
-            _apply_uniform_scale_from_last_axis(self)
+            value = self.scale_x
+            if axis == "Y":
+                value = self.scale_y
+            elif axis == "Z":
+                value = self.scale_z
+            # end if
+
+            self.syncing_scale = True
+            self.scale_x = value
+            self.scale_y = value
+            self.scale_z = value
+            self.syncing_scale = False
         # end if
 
     # end def
@@ -112,7 +103,10 @@ def _update_uniform_scale(self, context):
         return
     # end if
     if self.uniform_scale:
-        _apply_uniform_scale_from_last_axis(self)
+        self.syncing_scale = True
+        self.scale_y = self.scale_x
+        self.scale_z = self.scale_x
+        self.syncing_scale = False
     # end if
 
 
@@ -122,8 +116,8 @@ def _update_uniform_scale(self, context):
 class MeshVNFExportConfirm(Operator):
     """Collect export options before opening file save dialog"""
 
-    bl_idname = "mesh.export_vnf_confirm"
-    bl_label = "Export VNF Options"
+    bl_idname = "mesh.export_vnf"
+    bl_label = "Export VNF"
 
     basename: StringProperty(
         name="File Basename",
@@ -132,7 +126,7 @@ class MeshVNFExportConfirm(Operator):
 
     use_module: BoolProperty(
         name="Use Module",
-        description="Enabled keeps module-only output; disabled appends module call line",
+        description="Enable to export as a module",
         default=True,
     )
 
@@ -172,12 +166,11 @@ class MeshVNFExportConfirm(Operator):
     )
     uniform_scale: BoolProperty(
         name="Uniform Scale",
-        description="Use last changed scale axis for all axes",
+        description="Scale for all axes",
         default=False,
         update=_update_uniform_scale,
     )
 
-    scale_last_axis: StringProperty(default="X", options={"HIDDEN"})
     syncing_scale: BoolProperty(default=False, options={"HIDDEN", "SKIP_SAVE"})
 
     def invoke(self, context, event):
@@ -217,7 +210,7 @@ class MeshVNFExportConfirm(Operator):
         # end if
         filepath = os.path.join(blend_dir, "{}.scad".format(basename))
 
-        bpy.ops.mesh.export_vnf(
+        bpy.ops.mesh.export_vnf_dialog(
             "INVOKE_DEFAULT",
             filepath=filepath,
             module_name=basename,
@@ -228,8 +221,6 @@ class MeshVNFExportConfirm(Operator):
             scale_x=self.scale_x,
             scale_y=self.scale_y,
             scale_z=self.scale_z,
-            uniform_scale=self.uniform_scale,
-            scale_last_axis=self.scale_last_axis,
         )
         return {"FINISHED"}
 
@@ -242,8 +233,8 @@ class MeshVNFExportConfirm(Operator):
 class MeshVNFExporter(Operator, ExportHelper):
     """VNF Export Script"""
 
-    bl_idname = "mesh.export_vnf"
-    bl_label = "Export VNF"
+    bl_idname = "mesh.export_vnf_dialog"
+    bl_label = "Export VNF Dialog"
     bl_options = {"PRESET"}
 
     module_name: StringProperty(default="", options={"HIDDEN"})
@@ -263,8 +254,6 @@ class MeshVNFExporter(Operator, ExportHelper):
     scale_x: FloatProperty(default=1.0, options={"HIDDEN"})
     scale_y: FloatProperty(default=1.0, options={"HIDDEN"})
     scale_z: FloatProperty(default=1.0, options={"HIDDEN"})
-    uniform_scale: BoolProperty(default=False, options={"HIDDEN"})
-    scale_last_axis: StringProperty(default="X", options={"HIDDEN"})
 
     def draw(self, context):
         pass
@@ -292,22 +281,7 @@ class MeshVNFExporter(Operator, ExportHelper):
         exporting_bm.edges.ensure_lookup_table()
         exporting_bm.faces.ensure_lookup_table()
 
-        scale_x = self.scale_x
-        scale_y = self.scale_y
-        scale_z = self.scale_z
-        if self.uniform_scale:
-            uniform_scale = scale_x
-            if self.scale_last_axis == "Y":
-                uniform_scale = scale_y
-            elif self.scale_last_axis == "Z":
-                uniform_scale = scale_z
-            # end if
-            scale_x = uniform_scale
-            scale_y = uniform_scale
-            scale_z = uniform_scale
-        # end if
-
-        scale_matrix = Matrix.Diagonal((scale_x, scale_y, scale_z, 1.0))
+        scale_matrix = Matrix.Diagonal((self.scale_x, self.scale_y, self.scale_z, 1.0))
         bmesh.ops.transform(
             exporting_bm,
             matrix=scale_matrix,

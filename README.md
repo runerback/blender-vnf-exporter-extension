@@ -13,7 +13,8 @@ The add-on now shows a confirm dialog before the save-file dialog. In that confi
 - `Use Module`
 - rotate `X/Y/Z` (degrees)
 - scale `X/Y/Z`
-- `Uniform Scale` (uses the last changed scale axis value for all axes)
+- `Uniform Scale` (editing any one scale axis keeps all three axes synchronized)
+- defaults: rotate `0.0`, scale `1.0` (GUI reset restores these values)
 
 Default naming behavior:
 - basename starts from the mesh object name
