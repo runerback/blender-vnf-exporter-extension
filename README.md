@@ -15,6 +15,11 @@ The add-on now shows a confirm dialog before the save-file dialog. In that confi
 - scale `X/Y/Z`
 - `Uniform Scale` (uses the last changed scale axis value for all axes)
 
+Default naming behavior:
+- basename starts from the mesh object name
+- the value is sanitized to be filename-safe (invalid characters replaced)
+- if sanitization becomes empty, fallback name is `export`
+
 Transform behavior:
 - transforms are applied only to cloned export geometry (the original mesh is not modified)
 - transform order is scale first, then rotate in X -> Y -> Z order

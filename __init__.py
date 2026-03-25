@@ -7,6 +7,7 @@ bl_info = {
 import bpy
 import math
 import os
+import re
 import bmesh
 from bpy_extras.io_utils import ExportHelper
 from bpy.types import Operator, VIEW3D_MT_edit_mesh
@@ -18,9 +19,52 @@ from mathutils import Matrix
 def _default_basename(context):
     mesh = context.edit_object or context.object
     if mesh and mesh.name:
-        return mesh.name
+        return _sanitize_name(mesh.name)
     # end if
     return "export"
+
+
+# end def
+
+
+def _sanitize_name(name):
+    sanitized = name.strip()
+    sanitized = re.sub(r"[^\w-]+", "_", sanitized)
+    sanitized = sanitized.strip(" ._-")
+    if not sanitized:
+        return "export"
+    # end if
+    if sanitized[0].isdigit():
+        sanitized = "_{}".format(sanitized)
+    # end if
+    reserved_names = {
+        "CON",
+        "PRN",
+        "AUX",
+        "NUL",
+        "COM1",
+        "COM2",
+        "COM3",
+        "COM4",
+        "COM5",
+        "COM6",
+        "COM7",
+        "COM8",
+        "COM9",
+        "LPT1",
+        "LPT2",
+        "LPT3",
+        "LPT4",
+        "LPT5",
+        "LPT6",
+        "LPT7",
+        "LPT8",
+        "LPT9",
+    }
+    if sanitized.upper() in reserved_names:
+        sanitized = "{}_".format(sanitized)
+    # end if
+    return sanitized
 
 
 # end def
@@ -165,6 +209,7 @@ class MeshVNFExportConfirm(Operator):
 
     def execute(self, context):
         basename = self.basename.strip() or _default_basename(context)
+        basename = _sanitize_name(basename)
 
         blend_dir = bpy.path.abspath("//")
         if not blend_dir:
@@ -319,6 +364,7 @@ class MeshVNFExporter(Operator, ExportHelper):
         if not module_name:
             module_name = _default_basename(context)
         # end if
+        module_name = _sanitize_name(module_name)
         self.module_name = module_name
 
         with open(self.filepath, "w", encoding="utf-8") as scad:
